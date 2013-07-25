@@ -10,7 +10,7 @@ db_path = homedir + "/pictures/photos/digikam4.db"
 parser = argparse.ArgumentParser(description="Searches the digikam database, and copies folders of matching albums")
 
 # Query arguments: tag, rating, date range:
-parser.add_argument('-t', '--tags', help='Tag query. Must be in quotes, with conditionals outside quotes')
+parser.add_argument('-t', '--tags', help='Tag query. For multiple tags, separate tags with AND')
 parser.add_argument('-r', '--rating', help='Rating (1 - 5)')
 parser.add_argument('-d', '--date', help='Date Range (mm/dd/yyyy - mm/dd/yyyy')
 
@@ -34,7 +34,6 @@ if os.path.isdir(output_path):
 		pass
 
 #Establish database connection:
-print(db_path)
 try:
 	conn = sqlite3.connect(db_path)
 except:
@@ -42,9 +41,32 @@ except:
 
 c = conn.cursor()
 
-sql = "SELECT * FROM Tags WHERE name LIKE ?"
-c.execute(sql, [("%"+args.tags+"%")])
+#####################################
+#QUERY BUILDING:
+sql = "SELECT blah blah "
+#SELECT name FROM Tags JOIN Albumroots ON Tags.id=Albumroots
+
+#Rating:
+#Rating is rating column in ImageInformation table
+if args.rating:
+	sql = sql + ""
+
+
+#Date:
+
+#Tag:
+#TOTALLY WRONG: Should be and individual tag search for each item in array. THEN, the for loops should be in the query searching for matching albums.
+tag_array = str(args.tags).split(" AND ")
+sql = "SELECT * FROM Tags WHERE name LIKE ?" 
+for i in range(int(len(tag_array))-1):
+	sql = sql + " AND ?"
+tag_array_sql = []
+for i in tag_array:
+	tag_array_sql.append("%"+i+"%")
+print(tag_array_sql)
+c.execute(sql, tag_array_sql)
 out = (c.fetchall())
+print(out)
 
 #NEED TO BUILD CONDITIONAL LOGIC BEFORE CHECKING NUMBER OF TAGS RETURNED!
 
