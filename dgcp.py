@@ -43,46 +43,55 @@ c = conn.cursor()
 
 #####################################
 #QUERY BUILDING:
-sql = "SELECT blah blah "
 #SELECT name FROM Tags JOIN Albumroots ON Tags.id=Albumroots
 
-#Rating:
+#---------------------------------
+# Construct rating query
 #Rating is rating column in ImageInformation table
 if args.rating:
 	sql = sql + ""
 
 
-#Date:
-
-#Tag:
-#TOTALLY WRONG: Should be and individual tag search for each item in array. THEN, the for loops should be in the query searching for matching albums.
-tag_array = str(args.tags).split(" AND ")
-sql = "SELECT * FROM Tags WHERE name LIKE ?" 
-for i in range(int(len(tag_array))-1):
-	sql = sql + " AND ?"
-tag_array_sql = []
-for i in tag_array:
-	tag_array_sql.append("%"+i+"%")
-print(tag_array_sql)
-c.execute(sql, tag_array_sql)
-out = (c.fetchall())
-print(out)
-
-#NEED TO BUILD CONDITIONAL LOGIC BEFORE CHECKING NUMBER OF TAGS RETURNED!
-
-#If tag search comes up with more than one result, throw error listing tags:
-if len(out) > 1:
-	print("ERROR: Multiple tags found:")
-	for tag in out:
-		print("   "+tag[2])
-	print("Try again with a more exact tag query")
-
-# Assuming AND between above options
-
-
-# Construct tag query
-# Each tag string must be in quotes, AND/OR outside of quotes?
-
-# Construct rating query
-
+#---------------------------------
 # Construct date query (mm/dd/yyyy or mm/dd/yy)
+
+#---------------------------------
+# Construct tag query
+
+#Find matching tag from query. Return dictionary of tag ID and tag name. If more than one match, throw error and break:
+def find_tag(query):
+	sql = "SELECT id,name FROM Tags WHERE name LIKE ?" 
+	c.execute(sql, ["%"+query+"%"])
+	out = c.fetchall()
+	#If tag search comes up with more than one result, throw error listing tags:
+	if len(out) > 1:
+		error_text = "Multiple tags found:\n"
+		for tag in out:
+			error_text = error_text + "   "+tag[1]+"\n"
+		error_text = error_text + "Try again with a more exact tag query"
+		raise Exception(error_text)
+	else:
+		conn.row_factory = sqlite3.Row
+		c.execute(sql, ["%"+query+"%"])
+		out = c.fetchone()
+		tag_id = out[0]
+		tag_name = out[1]
+		return{'id':tag_id, 'name':tag_name}
+	
+tagsearch_array = str(args.tags).split(" AND ")
+tag_array = []
+
+for tag in tagsearch_array:
+	tag_array.append(find_tag(tag))
+
+#DEBUGGING, delete this loop:
+for tag in tag_array:
+	print(tag['name'])
+
+#WRONG PLACE: this will be needed for building the query that searches for matching albums, not the query to find tag names/ids:
+#for i in range(int(len(tag_array))-1):
+#	sql = sql + " AND ?"
+#tag_array_sql = []
+#for i in tag_array:
+#	tag_array_sql.append("%"+i+"%")
+#c.execute(sql, tag_array_sql)
