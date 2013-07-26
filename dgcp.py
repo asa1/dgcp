@@ -85,54 +85,29 @@ for tag in tagsearch_array:
 	tag_array.append(find_tag(tag))
 
 #Using id's from tag_array, put together SQL query section to finding matching albums:
-#ERROR: tag AND tag is operating as OR due to "IN" statement
-sql_example_delete_this_varibale = """
-repeat this selection for each tag, then JOIN where album id's match?
-
-SELECT id,relativePath FROM Albums WHERE id IN (
-		SELECT album FROM Images WHERE id IN (
-			SELECT imageid FROM ImageTags WHERE tagid=<tagid>
-		)
-	)
-"""
-
-sql = """
-SELECT id,relativePath FROM Albums WHERE id IN (
-		SELECT album FROM Images WHERE id IN (
-			SELECT imageid FROM ImageTags WHERE tagid IN (?"""
-for i in range(int(len(tag_array))-1):
-	sql = sql + ", ?"
-sql = sql + ")))"
-
-#EXAMPLE of how to find albums containing multiple tags (not necessarily tagged in the same photo):
-print("OVERRIDING INPUT TAGS FOR TESTING!!!")
 sql = """
 SELECT *
 FROM (
 	SELECT id,relativePath FROM Albums WHERE id IN ( 
 			SELECT album FROM Images WHERE id IN (
-				SELECT imageid FROM ImageTags WHERE tagid=2
+				SELECT imageid FROM ImageTags WHERE tagid="""+str(tag_array[0])+"""
 			)
 		)
-	) tag2
-INNER JOIN (
-SELECT id,relativePath FROM Albums WHERE id IN (
-		SELECT album FROM Images WHERE id IN (
-			SELECT imageid FROM ImageTags WHERE tagid=3
-		)
-	)
-) tag3
-ON tag2.id=tag3.id
-INNER JOIN (
-SELECT id,relativePath FROM Albums WHERE id IN (
-		SELECT album FROM Images WHERE id IN (
-			SELECT imageid FROM ImageTags WHERE tagid=25
-		)
-	)
-) tag25
-ON tag3.id=tag25.id
+	) tag"""+str(tag_array[0])+"""
+
 """
-#c.execute(sql, tag_array)
+for i in range(int(len(tag_array))-1):
+	tagid_prev = str(tag_array[i])
+	tagid_curr = str(tag_array[i+1])
+	sql = sql+"""INNER JOIN (
+	SELECT id,relativePath FROM Albums WHERE id IN (
+			SELECT album FROM Images WHERE id IN (
+				SELECT imageid FROM ImageTags WHERE tagid="""+tagid_curr+"""
+			)
+		)
+	) tag"""+tagid_curr+"""
+	ON tag"""+tagid_prev+""".id=tag"""+tagid_curr+""".id
+	"""
 c.execute(sql)
 out = c.fetchall()
 print(out)
