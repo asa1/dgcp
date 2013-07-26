@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import os,time,argparse,sqlite3
+import sys,os,time,argparse,sqlite3
 homedir = os.path.expanduser("~")
 
 #Default paths:
@@ -10,13 +10,18 @@ db_path = homedir + "/pictures/photos/digikam4.db"
 parser = argparse.ArgumentParser(description="Searches the digikam database, and copies folders of matching albums")
 
 # Query arguments: tag, rating, date range:
-parser.add_argument('-t', '--tags', help='Tag query. For multiple tags, separate tags with AND')
-parser.add_argument('-r', '--rating', help='Rating (1 - 5)')
+parser.add_argument('-t', '--tags', help='Tag query. For multiple tags, separate tags with AND. Example: -t \"frank AND ian underwood\"')
+parser.add_argument('-r', '--rating', help='Rating range, from 1 to 5. Example: -r 3-5')
 parser.add_argument('-d', '--date', help='Date Range (mm/dd/yyyy - mm/dd/yyyy')
 
 # Optional arguments to change Digikam DB location, or output folder:
 parser.add_argument('--outputpath', help='Specify alternate output directory. Default is ~/Desktop/digikam-search_<unixtime>')
 parser.add_argument('--dbpath', help='Specify alternate Digikam database location. Default is ~/pictures/photos/digikam4.db')
+
+# If no arguments given, print help and exit:
+if len(sys.argv) == 1:
+	parser.print_help()
+	sys.exit(1)
 
 args = parser.parse_args()
 
@@ -46,19 +51,31 @@ c = conn.cursor()
 #SELECT name FROM Tags JOIN Albumroots ON Tags.id=Albumroots
 
 #---------------------------------
-# Construct rating query
-#Rating is rating column in ImageInformation table
+# Parse rating range. Raise errors if input format is wrong, or out of range:
 if args.rating:
-	sql = sql + ""
+	rating_lower = str(args.rating).split("-")[0]
+	rating_upper = str(args.rating).split("-")[1]
+	try:
+		rl = int(rating_lower)
+		ru = int(rating_upper)
+	except:
+		raise Exception("Rating input is invalid. Should be in the format 0-5")
+	if not (((rl >= 0) and (rl <=5)) and ((ru >=0) and (ru <=5))):
+		raise Exception("Rating range invalid. Ratings must be between 0 and 5")
+else :
+	rating_lower = 0
+	rating_upper = 5
 
 
 #---------------------------------
 # Construct date query (mm/dd/yyyy or mm/dd/yy)
 
 #---------------------------------
-# Construct tag query
+# CONSTRUCT SQL QUERY:
+# Build tag section of query:
 
 #Find matching tag from query. Return tag ID. If more than one match, throw error and break:
+#BUG: will not work if entered tag is incomplete version of another tag. For example, it won't be possible to search for a tag named "Bob" if a tag named "Bob Smith" also exists:
 def find_tag(query):
 	sql = "SELECT id,name FROM Tags WHERE name LIKE ?" 
 	c.execute(sql, ["%"+query+"%"])
@@ -88,7 +105,7 @@ for tag in tagsearch_array:
 sql = """
 SELECT *
 FROM (
-	SELECT id,relativePath FROM Albums WHERE id IN ( 
+	SELECT id FROM Albums WHERE id IN ( 
 			SELECT album FROM Images WHERE id IN (
 				SELECT imageid FROM ImageTags WHERE tagid="""+str(tag_array[0])+"""
 			)
@@ -96,11 +113,13 @@ FROM (
 	) tag"""+str(tag_array[0])+"""
 
 """
+lasttag = str(tag_array[0])
 for i in range(int(len(tag_array))-1):
 	tagid_prev = str(tag_array[i])
 	tagid_curr = str(tag_array[i+1])
+	lasttag = tagid_curr
 	sql = sql+"""INNER JOIN (
-	SELECT id,relativePath FROM Albums WHERE id IN (
+	SELECT id FROM Albums WHERE id IN (
 			SELECT album FROM Images WHERE id IN (
 				SELECT imageid FROM ImageTags WHERE tagid="""+tagid_curr+"""
 			)
@@ -108,6 +127,15 @@ for i in range(int(len(tag_array))-1):
 	) tag"""+tagid_curr+"""
 	ON tag"""+tagid_prev+""".id=tag"""+tagid_curr+""".id
 	"""
+#Add rating SQL section (NOTE: this currently will choose any album with matching tags, and any images in the album that meet rating. Ideally, should check matched tag images for rating range instead):
+sql = sql + """INNER JOIN (
+	SELECT id FROM Albums WHERE id IN (
+		SELECT album FROM Images WHERE id IN (
+			SELECT imageid FROM ImageInformation WHERE rating>="""+format(rating_lower)+""" AND rating<="""+format(rating_upper)+"""
+		)
+	)
+) rating
+ON rating.id=tag"""+format(lasttag)+".id"
 c.execute(sql)
 out = c.fetchall()
 print(out)
