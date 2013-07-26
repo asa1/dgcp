@@ -48,10 +48,8 @@ c = conn.cursor()
 
 #####################################
 #QUERY BUILDING:
-#SELECT name FROM Tags JOIN Albumroots ON Tags.id=Albumroots
 
-#---------------------------------
-# Parse rating range. Raise errors if input format is wrong, or out of range:
+# Parse rating range. Raise errors if input format is invalid or out of range:
 if args.rating:
 	rating_lower = str(args.rating).split("-")[0]
 	rating_upper = str(args.rating).split("-")[1]
@@ -66,9 +64,20 @@ else :
 	rating_lower = 0
 	rating_upper = 5
 
-
 #---------------------------------
-# Construct date query (mm/dd/yyyy or mm/dd/yy)
+# Parse date range arguments (mm/dd/yyyy-mm/dd/yyyy). Raise errors if input format is invalid:
+if args.date:
+	date_sections = str(args.date).split("-")
+	if len(date_sections) == 2:
+		date_lower = date_sections[0]
+		date_upper = date_sections[1]
+		#Shuffle date around into SQL format:
+		date_lower = date_lower.split("/")[2]+"-"+date_lower.split("/")[0].zfill(2)+"-"+date_lower.split("/")[1].zfill(2)
+		date_upper = date_upper.split("/")[2]+"-"+date_upper.split("/")[0].zfill(2)+"-"+date_upper.split("/")[1].zfill(2)
+		print(date_lower+" - "+date_upper)
+	else:
+		raise Exception("Invalid date range. Date must be in format mm/dd/yyyy-mm/dd/yyyy")
+	
 
 #---------------------------------
 # CONSTRUCT SQL QUERY:
@@ -105,21 +114,21 @@ for tag in tagsearch_array:
 sql = """
 SELECT *
 FROM (
-	SELECT id FROM Albums WHERE id IN ( 
-			SELECT album FROM Images WHERE id IN (
-				SELECT imageid FROM ImageTags WHERE tagid="""+str(tag_array[0])+"""
+	SELECT id,relativePath FROM Albums WHERE id IN ( 
+			SELECT album FROM Images WHERE id IN ( SELECT imageid FROM ImageTags WHERE tagid="""+str(tag_array[0])+"""
 			)
 		)
 	) tag"""+str(tag_array[0])+"""
 
 """
 lasttag = str(tag_array[0])
+#Loop to add section for each addition tag specified:
 for i in range(int(len(tag_array))-1):
 	tagid_prev = str(tag_array[i])
 	tagid_curr = str(tag_array[i+1])
 	lasttag = tagid_curr
 	sql = sql+"""INNER JOIN (
-	SELECT id FROM Albums WHERE id IN (
+	SELECT id,relativePath FROM Albums WHERE id IN (
 			SELECT album FROM Images WHERE id IN (
 				SELECT imageid FROM ImageTags WHERE tagid="""+tagid_curr+"""
 			)
@@ -127,15 +136,29 @@ for i in range(int(len(tag_array))-1):
 	) tag"""+tagid_curr+"""
 	ON tag"""+tagid_prev+""".id=tag"""+tagid_curr+""".id
 	"""
-#Add rating SQL section (NOTE: this currently will choose any album with matching tags, and any images in the album that meet rating. Ideally, should check matched tag images for rating range instead):
+#Add rating SQL (NOTE: this currently will choose any album with matching tags, and any images in the album that meet rating. Ideally, should check matched tag images for rating range instead):
 sql = sql + """INNER JOIN (
-	SELECT id FROM Albums WHERE id IN (
+	SELECT id,relativePath FROM Albums WHERE id IN (
 		SELECT album FROM Images WHERE id IN (
 			SELECT imageid FROM ImageInformation WHERE rating>="""+format(rating_lower)+""" AND rating<="""+format(rating_upper)+"""
 		)
 	)
 ) rating
 ON rating.id=tag"""+format(lasttag)+".id"
+
+#Add date range SQL:
+if args.date:
+	sql = sql + """
+	INNER JOIN (
+		SELECT id,relativePath FROM Albums WHERE id IN (
+			SELECT album FROM Images WHERE id IN (
+				SELECT imageid FROM ImageInformation WHERE creationDate BETWEEN \'"""+date_lower+"\' AND \'"+date_upper+"\'"+"""
+			)
+		)
+	) date
+	ON rating.id=date.id
+"""
+print(sql)
 c.execute(sql)
 out = c.fetchall()
 print(out)
