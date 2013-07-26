@@ -1,6 +1,8 @@
 dgcp
 ====
 
+NOT READY FOR USE! dgcp is still being built, it does not yet do any file copying
+
 A command line tool to search the Digikam's SQLite database, and copy matching albums to another directory.
 
 Some hypothetical scenarios where dgcp is useful:
