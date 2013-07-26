@@ -58,7 +58,7 @@ if args.rating:
 #---------------------------------
 # Construct tag query
 
-#Find matching tag from query. Return dictionary of tag ID and tag name. If more than one match, throw error and break:
+#Find matching tag from query. Return tag ID. If more than one match, throw error and break:
 def find_tag(query):
 	sql = "SELECT id,name FROM Tags WHERE name LIKE ?" 
 	c.execute(sql, ["%"+query+"%"])
@@ -76,22 +76,55 @@ def find_tag(query):
 		out = c.fetchone()
 		tag_id = out[0]
 		tag_name = out[1]
-		return{'id':tag_id, 'name':tag_name}
-	
+		return(tag_id)
+
 tagsearch_array = str(args.tags).split(" AND ")
 tag_array = []
 
 for tag in tagsearch_array:
 	tag_array.append(find_tag(tag))
 
-#DEBUGGING, delete this loop:
-for tag in tag_array:
-	print(tag['name'])
+#Using id's from tag_array, put together SQL query section to finding matching albums:
+#ERROR: tag AND tag is operating as OR due to "IN" statement
+sql_example_delete_this_varibale = """
+repeat this selection for each tag, then JOIN where album id's match?
 
-#WRONG PLACE: this will be needed for building the query that searches for matching albums, not the query to find tag names/ids:
-#for i in range(int(len(tag_array))-1):
-#	sql = sql + " AND ?"
-#tag_array_sql = []
-#for i in tag_array:
-#	tag_array_sql.append("%"+i+"%")
-#c.execute(sql, tag_array_sql)
+SELECT id,relativePath FROM Albums WHERE id IN (
+		SELECT album FROM Images WHERE id IN (
+			SELECT imageid FROM ImageTags WHERE tagid=<tagid>
+		)
+	)
+"""
+
+sql = """
+SELECT id,relativePath FROM Albums WHERE id IN (
+		SELECT album FROM Images WHERE id IN (
+			SELECT imageid FROM ImageTags WHERE tagid IN (?"""
+for i in range(int(len(tag_array))-1):
+	sql = sql + ", ?"
+sql = sql + ")))"
+
+#EXAMPLE of how to find albums containing two tags (not necessarily tagged in the same photo. Need to figure out how to apply to more than two tags:
+sql = """
+SELECT *
+FROM (
+	SELECT id,relativePath FROM Albums WHERE id IN ( 
+			SELECT album FROM Images WHERE id IN (
+				SELECT imageid FROM ImageTags WHERE tagid=2
+			)
+		)
+	) a
+JOIN (
+SELECT id,relativePath FROM Albums WHERE id IN (
+		SELECT album FROM Images WHERE id IN (
+			SELECT imageid FROM ImageTags WHERE tagid=121
+		)
+	)
+) b
+ON a.id=b.id
+
+"""
+#c.execute(sql, tag_array)
+c.execute(sql)
+out = c.fetchall()
+print(out)
