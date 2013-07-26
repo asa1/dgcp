@@ -104,7 +104,8 @@ for i in range(int(len(tag_array))-1):
 	sql = sql + ", ?"
 sql = sql + ")))"
 
-#EXAMPLE of how to find albums containing two tags (not necessarily tagged in the same photo. Need to figure out how to apply to more than two tags:
+#EXAMPLE of how to find albums containing multiple tags (not necessarily tagged in the same photo):
+print("OVERRIDING INPUT TAGS FOR TESTING!!!")
 sql = """
 SELECT *
 FROM (
@@ -113,16 +114,23 @@ FROM (
 				SELECT imageid FROM ImageTags WHERE tagid=2
 			)
 		)
-	) a
-JOIN (
+	) tag2
+INNER JOIN (
 SELECT id,relativePath FROM Albums WHERE id IN (
 		SELECT album FROM Images WHERE id IN (
-			SELECT imageid FROM ImageTags WHERE tagid=121
+			SELECT imageid FROM ImageTags WHERE tagid=3
 		)
 	)
-) b
-ON a.id=b.id
-
+) tag3
+ON tag2.id=tag3.id
+INNER JOIN (
+SELECT id,relativePath FROM Albums WHERE id IN (
+		SELECT album FROM Images WHERE id IN (
+			SELECT imageid FROM ImageTags WHERE tagid=25
+		)
+	)
+) tag25
+ON tag3.id=tag25.id
 """
 #c.execute(sql, tag_array)
 c.execute(sql)
