@@ -1,0 +1,6 @@
+- Enable file copying
+- Fix tag bug - perhaps query should include wildcard character instead?
+- Allow queries without tag (just date and/or rating)
+- Reorganize code into more logical/readable structure
+- Change rating search to only match on photos matching tag queries? (Rather than match any photo in the same album with the specified rating)
+- Add option to specify an alternate albumRoot (in case dgcp is run on a backup copy of the digikam database and collection, where the database root paths don't match)
