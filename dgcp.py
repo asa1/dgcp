@@ -74,7 +74,6 @@ if args.date:
 		#Shuffle date around into SQL format:
 		date_lower = date_lower.split("/")[2]+"-"+date_lower.split("/")[0].zfill(2)+"-"+date_lower.split("/")[1].zfill(2)
 		date_upper = date_upper.split("/")[2]+"-"+date_upper.split("/")[0].zfill(2)+"-"+date_upper.split("/")[1].zfill(2)
-		print(date_lower+" - "+date_upper)
 	else:
 		raise Exception("Invalid date range. Date must be in format mm/dd/yyyy-mm/dd/yyyy")
 	
@@ -122,7 +121,7 @@ FROM (
 
 """
 lasttag = str(tag_array[0])
-#Loop to add section for each addition tag specified:
+#Loop to add section for each additional tag specified:
 for i in range(int(len(tag_array))-1):
 	tagid_prev = str(tag_array[i])
 	tagid_curr = str(tag_array[i+1])
@@ -158,7 +157,6 @@ if args.date:
 	) date
 	ON rating.id=date.id
 """
-print(sql)
 c.execute(sql)
 out = c.fetchall()
 print(out)
