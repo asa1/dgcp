@@ -1,4 +1,4 @@
-- Enable file copying
+- Fix date search
 - Fix tag bug - perhaps query should include wildcard character instead?
 - Allow queries without tag (just date and/or rating)
 - Reorganize code into more logical/readable structure

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import sys,os,time,argparse,sqlite3
+import sys,os,time,shutil,argparse,sqlite3
 homedir = os.path.expanduser("~")
 
 #Default paths:
@@ -12,11 +12,12 @@ parser = argparse.ArgumentParser(description="Searches the digikam database, and
 # Query arguments: tag, rating, date range:
 parser.add_argument('-t', '--tags', help='Tag query. For multiple tags, separate tags with AND. Example: -t \"frank AND ian underwood\"')
 parser.add_argument('-r', '--rating', help='Rating range, from 1 to 5. Example: -r 3-5')
-parser.add_argument('-d', '--date', help='Date Range (mm/dd/yyyy - mm/dd/yyyy')
+parser.add_argument('-d', '--date', help='Date Range <mm/dd/yyyy-mm/dd/yyyy>')
 
-# Optional arguments to change Digikam DB location, or output folder:
+# Optional arguments to change Digikam DB location, output folder or run in test mode:
 parser.add_argument('--outputpath', help='Specify alternate output directory. Default is ~/Desktop/digikam-search_<unixtime>')
 parser.add_argument('--dbpath', help='Specify alternate Digikam database location. Default is ~/pictures/photos/digikam4.db')
+parser.add_argument('--test', action='store_true', help='Run in test mode: disables directory creation and file copying, and prints list of matching files')
 
 # If no arguments given, print help and exit:
 if len(sys.argv) == 1:
@@ -30,13 +31,18 @@ if args.dbpath:
 	db_path = args.dbpath
 if args.outputpath:
 	output_path = args.outputpath
-#If directory already exists, create a subdirectory with unix time stamp:
+#Set test mode:
+if args.test:
+	testmode = True
+else:
+	testmode = False
+#If output directory already exists, create a subdirectory with unix time stamp:
 if os.path.isdir(output_path):
 	newpath = output_path + "/digikam_export_" + str(int(time.time()))
 	if not os.path.exists(newpath):
-		#DISABLED WHILE TESTING:
-		#os.makedirs(newpath)
-		pass
+		output_path = newpath
+		if not testmode:
+			os.makedirs(newpath)
 
 #Establish database connection:
 try:
@@ -159,4 +165,31 @@ if args.date:
 """
 c.execute(sql)
 out = c.fetchall()
-print(out)
+#For each album, get list of images and copy:
+for album in out:
+	# Get list of image file names:
+	sql = "SELECT name FROM Images WHERE album="+str(album[0])
+	c.execute(sql)
+	photolist = c.fetchall()
+	# Get album root:
+	sql = """
+		SELECT specificPath FROM AlbumRoots WHERE id in (
+			SELECT albumRoot FROM Albums WHERE id="""+str(album[0])+")"
+	c.execute(sql)
+	albumroot = c.fetchall()[0][0]
+	for photofile in photolist:
+		fullpath = albumroot + album[1] + "/" + photofile[0]
+		dst_path = output_path + album[1] + "/"
+		if testmode:
+			print("===================")
+			print("Copying from:")
+			print(fullpath)
+			print("to:")
+			print(dst_path)
+			print(" ")
+		else:
+			# If output subdirectory doesn't exist, create it:
+			if not os.path.exists(dst_path):
+				os.makedirs(dst_path)
+			# Copy image:
+			shutil.copyfile(fullpath,dst_path + "/" + photofile[0])
