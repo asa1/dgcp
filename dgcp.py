@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import sys,os,time,shutil,argparse,sqlite3
+import sys,os,re,time,shutil,argparse,sqlite3
 homedir = os.path.expanduser("~")
 
 #Default paths:
@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser(description="Searches the digikam database, and
 
 # Query arguments: tag, rating, date range:
 parser.add_argument('-t', '--tags', help='Tag query. For multiple tags, separate tags with AND. Example: -t \"frank AND ian underwood\"')
-parser.add_argument('-r', '--rating', help='Rating range, from 1 to 5. Example: -r 3-5')
+parser.add_argument('-r', '--rating', help='Rating range, from 0 to 5. Example: -r 3-5')
 parser.add_argument('-d', '--date', help='Date Range <mm/dd/yyyy-mm/dd/yyyy>')
 
 # Optional arguments to change Digikam DB location, output folder or run in test mode:
@@ -57,8 +57,15 @@ c = conn.cursor()
 
 # Parse rating range. Raise errors if input format is invalid or out of range:
 if args.rating:
-	rating_lower = str(args.rating).split("-")[0]
-	rating_upper = str(args.rating).split("-")[1]
+	# If only a single rating number is specified (e.g. 5, rather than 4-5), set upper and lower to same value:
+	singlerating = re.compile("^[0-5]$")
+	if singlerating.match(str(args.rating)):
+		rating_lower = int(args.rating)
+		rating_upper = int(args.rating)
+	# Otherwise, proceed assuming a range was specified:
+	else:
+		rating_lower = str(args.rating).split("-")[0]
+		rating_upper = str(args.rating).split("-")[1]
 	try:
 		rl = int(rating_lower)
 		ru = int(rating_upper)
